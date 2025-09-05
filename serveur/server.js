@@ -3,32 +3,30 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const { parse } = require("csv-parse");
-const morgan = require("morgan");
+const { stringify } = require("csv-stringify/sync");
+const axios = require("axios");
 
-
-
-/**
- * Config
- */
+// ---------------- CONFIG ----------------
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.resolve("data/items.csv");
 
-/**
- * Cache mémoire
- */
+// ⚠️ Mets ici ton webhook Discord
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1413583829939261562/QgcPoIo3-YUmVAuzQ1u9XiGa_G9uU5g6s8Vs_4bHsDHFbNtbJi92hue62vuvwW2jfwNY";
+
+// ---------------- CACHE ----------------
 let CACHE = {
   items: [],
   etag: "",
   lastLoaded: 0
 };
 
+const RESERVATIONS = [];
+
 const app = express();
-app.use(cors()); // <== autorise toutes les origines
+app.use(cors());
 app.use(express.json());
 
-/**
- * Conversion sécurisée
- */
+// ---------------- UTIL ----------------
 function toInt(x, def = 0) {
   const n = parseInt(x, 10);
   return Number.isFinite(n) ? n : def;
@@ -43,15 +41,13 @@ function toBool(x) {
   return s === "1" || s === "true" || s === "yes";
 }
 
-/**
- * Charger CSV
- */
+// ---------------- CSV ----------------
 function parseCsv(filePath) {
   return new Promise((resolve, reject) => {
     const rows = [];
     fs.createReadStream(filePath)
       .pipe(parse({ columns: true, trim: true, skip_empty_lines: true }))
-      .on("data", (r) => rows.push(r))
+      .on("data", r => rows.push(r))
       .on("end", () => resolve(rows))
       .on("error", reject);
   });
@@ -82,9 +78,21 @@ async function loadData() {
   console.log(`✅ Données chargées (${CACHE.items.length} items)`);
 }
 
-/**
- * Reload automatique si le fichier change
- */
+function saveCsv(filePath, items) {
+  const records = items.map(i => ({
+    id: i.id,
+    image: i.image,
+    title: i.title,
+    stock: i.stock,
+    price: i.price
+  }));
+
+  const csv = stringify(records, { header: true });
+  fs.writeFileSync(filePath, csv, "utf8");
+  console.log("💾 CSV mis à jour avec les stocks actuels");
+}
+
+// ---------------- WATCH ----------------
 function watchFile() {
   if (fs.existsSync(DATA_FILE)) {
     fs.watchFile(DATA_FILE, { interval: 500 }, async () => {
@@ -94,20 +102,36 @@ function watchFile() {
   }
 }
 
-/**
- * Middleware ETag
- */
+// ---------------- ETag ----------------
 function withEtag(req, res, next) {
   res.setHeader("ETag", CACHE.etag);
-  if (req.headers["if-none-match"] === CACHE.etag) {
-    return res.status(304).end();
-  }
+  if (req.headers["if-none-match"] === CACHE.etag) return res.status(304).end();
   next();
 }
 
-/**
- * Routes
- */
+// ---------------- DISCORD ----------------
+async function sendDiscordMessage(reservation) {
+  try {
+    const itemsList = reservation.items
+      .map(i => {
+        const lineTotal = (i.quantity * i.price).toFixed(2);
+        return `• **${i.title}** x${i.quantity} = ${lineTotal}CHF${i.error ? " ⚠️ " + i.error : ""}`;
+      })
+      .join("\n");
+
+    const content = `📢 **Nouvelle réservation**\n👤 Client: **${reservation.customer}**\n🕒 Date: ${reservation.date}\n\n${itemsList}`;
+
+    // Envoi du message via webhook
+    await axios.post(DISCORD_WEBHOOK_URL, { content });
+
+    console.log("✅ Message envoyé !");
+  } catch (err) {
+    console.error("❌ Erreur envoi Discord:", err.message);
+  }
+}
+
+
+// ---------------- ROUTES ----------------
 app.get("/health", (req, res) => {
   res.json({ ok: true, items: CACHE.items.length, lastLoaded: CACHE.lastLoaded });
 });
@@ -123,21 +147,10 @@ app.get("/items", withEtag, (req, res) => {
 
   let data = CACHE.items;
 
-  if (q) {
-    data = data.filter(i =>
-      i.title.toLowerCase().includes(q) ||
-      i.image.toLowerCase().includes(q)
-    );
-  }
-  if (inStock !== undefined) {
-    data = data.filter(i => (inStock ? i.stock > 0 : i.stock <= 0));
-  }
-  if (minPrice !== undefined) {
-    data = data.filter(i => i.price >= minPrice);
-  }
-  if (maxPrice !== undefined) {
-    data = data.filter(i => i.price <= maxPrice);
-  }
+  if (q) data = data.filter(i => i.title.toLowerCase().includes(q) || i.image.toLowerCase().includes(q));
+  if (inStock !== undefined) data = data.filter(i => (inStock ? i.stock > 0 : i.stock <= 0));
+  if (minPrice !== undefined) data = data.filter(i => i.price >= minPrice);
+  if (maxPrice !== undefined) data = data.filter(i => i.price <= maxPrice);
 
   const field = sort.replace(/^[-+]/, "");
   const dir = sort.startsWith("-") ? -1 : 1;
@@ -168,58 +181,24 @@ app.post("/admin/reload", async (req, res) => {
   }
 });
 
-
-const { stringify } = require("csv-stringify/sync"); // npm i csv-stringify
-
-function saveCsv(filePath, items) {
-  const records = items.map(i => ({
-    id: i.id,
-    image: i.image,
-    title: i.title,
-    stock: i.stock,
-    price: i.price
-  }));
-
-  const csv = stringify(records, { header: true });
-  fs.writeFileSync(filePath, csv, "utf8");
-  console.log("💾 CSV mis à jour avec les stocks actuels");
-}
-
-
-
-const RESERVATIONS = [];
-
-/**
- * Route POST /reserve
- * Body attendu : { customer: "Nom", items: [ { id, quantity } ] }
- */
 app.post("/reserve", (req, res) => {
   const { customer, items } = req.body;
-
-  if (!customer || !Array.isArray(items)) {
-    return res.status(400).json({ error: "Requête invalide" });
-  }
+  if (!customer || !Array.isArray(items)) return res.status(400).json({ error: "Requête invalide" });
 
   const checkedItems = [];
 
   for (const it of items) {
     const product = CACHE.items.find(p => p.id === it.id);
-    if (!product) {
-      checkedItems.push({ ...it, error: "Produit introuvable" });
-      continue;
-    }
-    if (it.quantity > product.stock) {
-      checkedItems.push({ ...it, error: "Quantité > stock" });
-      continue;
-    }
+    if (!product) { checkedItems.push({ ...it, error: "Produit introuvable" }); continue; }
+    if (it.quantity > product.stock) { checkedItems.push({ ...it, error: "Quantité > stock" }); continue; }
 
-    // Décrémenter le stock en mémoire
+    // Décrément stock
     product.stock -= it.quantity;
 
     checkedItems.push({ ...it, title: product.title, price: product.price });
   }
 
-  // Sauvegarder le CSV pour persistance
+  // Persister le stock
   saveCsv(DATA_FILE, CACHE.items);
 
   const reservation = {
@@ -228,23 +207,34 @@ app.post("/reserve", (req, res) => {
     items: checkedItems,
     date: new Date().toISOString()
   };
-
   RESERVATIONS.push(reservation);
 
-  console.log("📦 Nouvelle réservation:", reservation);
+  // Envoi Discord
+  sendDiscordMessage(reservation);
 
+  console.log("📦 Nouvelle réservation:", reservation);
   res.json({ ok: true, reservation });
 });
 
+const TARGET_URL = "https://example.com"; // mets l'URL que tu veux pinger
+
+// Fonction pour faire la requête
+async function pingWebsite() {
+  try {
+    const res = await axios.get(TARGET_URL);
+    console.log(`♻️ Ping réussi (${new Date().toLocaleTimeString()}), status: ${res.status}`);
+  } catch (err) {
+    console.error(`❌ Erreur ping (${new Date().toLocaleTimeString()}):`, err.message);
+  }
+}
+
+// Toutes les 2 minutes (120000 ms)
+setInterval(pingWebsite, 120000);
 
 
-/**
- * Boot
- */
+// ---------------- BOOT ----------------
 (async () => {
   await loadData();
   watchFile();
-  app.listen(PORT, () => {
-    console.log(`🚀 API dispo sur http://localhost:${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`🚀 API dispo sur http://localhost:${PORT}`));
 })();
