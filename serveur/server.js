@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const axios = require("axios");
 const Airtable = require("airtable");
@@ -69,6 +70,14 @@ async function sendDiscordMessage(reservation) {
     console.error("❌ Erreur envoi Discord:", err.message);
   }
 }
+
+app.use(express.static(path.join(__dirname, "public")));
+
+// Redirige toutes les requêtes “inconnues” vers index.html
+app.get(["/", "/damien"], (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 
 // ---------------- ROUTES ----------------
 app.get("/health", async (req, res) => {
