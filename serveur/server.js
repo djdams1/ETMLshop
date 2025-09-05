@@ -216,7 +216,7 @@ app.post("/reserve", (req, res) => {
   res.json({ ok: true, reservation });
 });
 
-const TARGET_URL = "https://example.com"; // mets l'URL que tu veux pinger
+const TARGET_URL = "https://etmlshop.onrender.com/"; // mets l'URL que tu veux pinger
 
 // Fonction pour faire la requête
 async function pingWebsite() {
