@@ -4,15 +4,15 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-  "start": "node serveur/server.js"
-},
-
+    "start": "node serveur/server.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "@vercel/node": "^5.3.21",
+    "airtable": "^0.12.2",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
