@@ -145,6 +145,9 @@ app.post("/reserve", async (req, res) => {
   console.log("📦 Nouvelle réservation:", reservation);
   res.json({ ok: true, reservation });
 });
+app.get("*", (req,res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
+});
 
 // ---------------- BOOT ----------------
 app.listen(PORT, () => console.log(`🚀 API dispo sur http://localhost:${PORT}`));
