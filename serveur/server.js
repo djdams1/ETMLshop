@@ -71,10 +71,10 @@ async function sendDiscordMessage(reservation) {
   }
 }
 
+const path = require("path");
 app.use(express.static(path.join(__dirname, "public")));
 
-// Redirige toutes les requêtes “inconnues” vers index.html
-app.get(["/", "/damien"], (req, res) => {
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
