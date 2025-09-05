@@ -5,9 +5,14 @@ const axios = require("axios");
 const Airtable = require("airtable");
 
 // ---------------- CONFIG ----------------
-const AIRTABLE_PAT = "patnf0j0L63L87HMF.08d52d0bf7b44c157091e8b5c513c8078e79d4e6d0033bb33932ec65baeb1afd";
-const AIRTABLE_BASE_ID = "app2KcZXoyufc1Eou";
-const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1413583829939261562/QgcPoIo3-YUmVAuzQ1u9XiGa_G9uU5g6s8Vs_4bHsDHFbNtbJi92hue62vuvwW2jfwNY";
+
+const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
+const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
+// const AIRTABLE_PAT = "patnf0j0L63L87HMF.08d52d0bf7b44c157091e8b5c513c8078e79d4e6d0033bb33932ec65baeb1afd";
+// const AIRTABLE_BASE_ID = "app2KcZXoyufc1Eou";
+// const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1413583829939261562/QgcPoIo3-YUmVAuzQ1u9XiGa_G9uU5g6s8Vs_4bHsDHFbNtbJi92hue62vuvwW2jfwNY";
 
 const base = new Airtable({ apiKey: AIRTABLE_PAT }).base(AIRTABLE_BASE_ID);
 
