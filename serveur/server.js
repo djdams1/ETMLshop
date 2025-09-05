@@ -6,7 +6,7 @@ const Airtable = require("airtable");
 // Variables d'environnement
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1413583829939261562/QgcPoIo3-YUmVAuzQ1u9XiGa_G9uU5g6s8Vs_4bHsDHFbNtbJi92hue62vuvwW2jfwNY";
 
 const base = new Airtable({ apiKey: AIRTABLE_PAT }).base(AIRTABLE_BASE_ID);
 
