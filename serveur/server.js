@@ -72,6 +72,16 @@ app.get("/items", async(req,res)=>{
   }catch(err){res.status(500).json({error:err.message});}
 });
 
+app.get("/test-discord", async (req, res) => {
+  try {
+    await axios.post(DISCORD_WEBHOOK_URL, { content: "Test Discord depuis l'API ✅" });
+    res.json({ ok: true, message: "Message envoyé !" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+
 app.post("/reserve", async(req,res)=>{
   try{
     const {customer, items} = req.body;
