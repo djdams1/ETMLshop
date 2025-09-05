@@ -130,6 +130,20 @@ async function sendDiscordMessage(reservation) {
   }
 }
 
+// Servir le fichier CSV
+app.get("/data/items.csv", (req, res) => {
+  const csvPath = path.join(__dirname, "data", "items.csv");
+  fs.readFile(csvPath, "utf8", (err, data) => {
+    if (err) return res.status(500).send("Erreur lecture CSV");
+    res.type("text/csv").send(data);
+  });
+});
+
+// Servir index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+});
+
 
 // ---------------- ROUTES ----------------
 app.get("/health", (req, res) => {

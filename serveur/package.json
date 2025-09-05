@@ -4,14 +4,15 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
+  "start": "node serveur/server.js"
+},
+
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@vercel/node": "^5.3.21",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
